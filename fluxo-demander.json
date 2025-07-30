@@ -1,0 +1,160 @@
+{
+  "name": "My workflow 3",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "49dc5bb0-b2a6-4f0a-850a-9d5def286313",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        176,
+        0
+      ],
+      "id": "41eca457-843f-4256-a0d9-15cf8c1b07dc",
+      "name": "EntradaWebhook",
+      "webhookId": "49dc5bb0-b2a6-4f0a-850a-9d5def286313"
+    },
+    {
+      "parameters": {
+        "jsCode": "const texto = $input.first().json.body.texto\nconst resultado = [];\n\nconst partes = texto.split(',');\n\nfor (let parte of partes) {\n  parte = parte.trim();\n  const match = parte.match(/(\\d+)\\s*(?:x\\s*)?([\\w\\s\\-]+)/i);\n\n  if (match) {\n    resultado.push({\n      termo_pesquisado: match[2].toLowerCase(),\n      qtde: parseInt(match[1])\n    });\n  }\n}\n\nreturn [\n  {\n    json: {\n      termos: resultado\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        -80
+      ],
+      "id": "ea760c51-c8e6-4064-a41a-fc91f8504832",
+      "name": "ExtrairTermos"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        -16
+      ],
+      "id": "375665b8-54af-41c6-a802-23d2c9fb1514",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const termos = items[0].json.termos;\nconst produtos = items.slice(1).map(p => p.json);\n\nconst resultado = termos.map(termo => {\n  const termoPesquisado = termo.termo_pesquisado.toLowerCase();\n\n  // Filtra os produtos que contêm o termo na descrição\n  const encontrados = produtos.filter(produto => {\n    const descricao = produto.descricao?.toLowerCase() || \"\";\n    return descricao.includes(termoPesquisado);\n  });\n\n  const encontradosUnicos = encontrados.filter((produto, index, self) => {\n  const codigo = produto.codigoBarras;\n\n  // Se for null ou undefined, sempre inclui\n  if (codigo == null) return true;\n\n  // Caso contrário, remove duplicatas com base no codigoBarras\n  return index === self.findIndex(p => p.codigoBarras === codigo);\n});\n\n\n  return {\n    json: {\n      termo_pesquisado: termo.termo_pesquisado,\n      qtde: termo.qtde,\n      contagem: encontradosUnicos.length,\n      produtos_encontrados: encontradosUnicos\n    }\n  };\n});\n\nreturn resultado;\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -16
+      ],
+      "id": "598ca5b0-c40c-4443-818e-5eb95c522cd2",
+      "name": "AgruparProdutos"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1024,
+        -16
+      ],
+      "id": "d6bc5b95-59a5-4b7d-861d-ade8238b5847",
+      "name": "RespostaFinal"
+    },
+    {
+      "parameters": {
+        "url": "https://cdn-demander.s3.sa-east-1.amazonaws.com/processo-seletivo/exemplo-de-produtos.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        464,
+        80
+      ],
+      "id": "316718ed-ecb0-4651-ac90-0a8063f17df4",
+      "name": "BaseProdutos"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "EntradaWebhook": {
+      "main": [
+        [
+          {
+            "node": "ExtrairTermos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "BaseProdutos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExtrairTermos": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "AgruparProdutos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AgruparProdutos": {
+      "main": [
+        [
+          {
+            "node": "RespostaFinal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BaseProdutos": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6c660e29-658f-4d84-86f7-5a72f8bb1335",
+  "meta": {
+    "instanceId": "9c41c5fc95af6382847d7071ec018efe3b83a59206f94827079e2017626977f4"
+  },
+  "id": "YL2ptzPcEPxt9D3w",
+  "tags": []
+}
